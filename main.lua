@@ -1,4 +1,4 @@
--- name: [CS] \\#ac50ff\\Kaktus 2
+-- name: [CS] \\#ac50ff\\Kaktus: \\#19db15\\Extra Prickly
 -- description: Kaktus 2 Ultra Deluxe + Tropical Freeze's Fury 10 EX DX X Z Now featuring Saul from the Saul Game 3D Series U x Isikle Auto For Nintendo 3DS for Wii U 7
 
 local E_MODEL_KAKTUS = smlua_model_util_get_id("kaktus_geo")
