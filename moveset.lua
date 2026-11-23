@@ -14,6 +14,7 @@ for i = 0, MAX_PLAYERS - 1 do
     e.canBrella = true
     e.charArg = 0
     e.flyFloor = 0
+    e.slideBounce = 0
 end
 
 local brellaActions = { -- What actions you can brella out of
@@ -23,20 +24,129 @@ local brellaActions = { -- What actions you can brella out of
     [ACT_LONG_JUMP] = true,
     [ACT_FREEFALL] = true,
     [ACT_SIDE_FLIP] = true,
-    [ACT_BACKFLIP] = true,
+    --[ACT_BACKFLIP] = true,
     [ACT_WALL_KICK_AIR] = true,
     [ACT_TOP_OF_POLE_JUMP] = true,
-    [ACT_SHOT_FROM_CANNON] = true,
-    [ACT_WATER_JUMP] = true,
+    --[ACT_SHOT_FROM_CANNON] = true,
+    --[ACT_WATER_JUMP] = true,
 }
 
-
+ACT_BRELLA_SLIDE_AIR = allocate_mario_action(ACT_GROUP_MOVING | ACT_FLAG_AIR)
+--ACT_BRELLA_SLIDE = allocate_mario_action(ACT_GROUP_MOVING | ACT_FLAG_AIR)
 ACT_BRELLA_FLOAT = allocate_mario_action(ACT_GROUP_AIRBORNE | ACT_FLAG_AIR)
 --ACT_BRELLA_THRUST = allocate_mario_action(ACT_GROUP_MOVING | ACT_FLAG_ATTACKING)
 --ACT_BRELLA_THRUST_AIR = allocate_mario_action(ACT_GROUP_AIRBORNE | ACT_FLAG_ATTACKING)
 --ACT_BRELLA_LUNGE = allocate_mario_action(ACT_GROUP_AIRBORNE | ACT_FLAG_AIR | ACT_FLAG_DIVING)
-ACT_KAK_ROLL_AIR = allocate_mario_action(ACT_GROUP_AIRBORNE | ACT_FLAG_AIR | ACT_FLAG_ATTACKING | ACT_FLAG_DIVING)
-ACT_KAK_ROLL = allocate_mario_action(ACT_GROUP_MOVING | ACT_FLAG_ATTACKING)
+ACT_KAK_ROLL_AIR = allocate_mario_action(ACT_GROUP_AIRBORNE | ACT_FLAG_AIR | ACT_FLAG_DIVING)
+ACT_KAK_ROLL = allocate_mario_action(ACT_GROUP_MOVING)
+
+function act_brella_slide_air(m)
+
+    m.marioBodyState.handState = MARIO_HAND_PEACE_SIGN
+
+    local e = gStateExtras[m.playerIndex]
+
+
+    if m.actionState == 0 and m.actionTimer == 0 then
+        play_mario_sound(m, SOUND_ACTION_TERRAIN_JUMP, SOUND_MARIO_HOOHOO)
+        --set_mario_animation(m, MARIO_ANIM_SLIDE_KICK)
+    end
+
+    if m.actionTimer > 30 and m.pos[1] - m.floorHeight > 500 then
+        return set_mario_action(m, ACT_FREEFALL, 2);
+    end
+
+    --update_air_without_turn(m)
+
+    local stepResult = common_air_action_step(m, ACT_SLIDE_KICK_SLIDE, CHAR_ANIM_TWIRL, AIR_STEP_NONE)
+
+    m.vel.y = m.vel.y + 2
+
+    e.rotAngle = m.vel.y * -200
+    m.marioObj.header.gfx.angle.x = e.rotAngle
+
+    e.rotAngle = m.vel.y * 4000
+    m.marioObj.header.gfx.angle.y = e.rotAngle
+
+    --perform_air_step(m, 0)
+        if stepResult == AIR_STEP_NONE then
+                --m.marioObj.header.gfx.angle.z = atan2s(m.forwardVel, m.vel.y)
+                --if (m.marioObj.header.gfx.angle.z > 0x1800) then
+                --    m.marioObj.header.gfx.angle.z = 0x1800
+                --end
+        end
+
+        --if stepResult == AIR_STEP_LANDED and e.slideBounce == 0 then
+            
+        --        m.vel.y = 10
+        --        m.pos.y = m.pos.y + 5
+        --        e.slideBounce = 1
+        --        play_mario_landing_sound(m, SOUND_ACTION_TERRAIN_LANDING)
+        --end
+
+        if stepResult == AIR_STEP_LANDED and e.slideBounce == 1 then
+            
+                set_mario_action(m, ACT_BRELLA_SLIDE, 0)
+                play_mario_landing_sound(m, SOUND_ACTION_TERRAIN_LANDING)
+        end
+
+        if stepResult == AIR_STEP_HIT_WALL then
+            if (m.vel.y > 0.0) then
+                m.vel.y = 0.0
+            end
+
+            m.particleFlags = PARTICLE_VERTICAL_STAR
+
+            set_mario_action(m, ACT_BACKWARD_AIR_KB, 0)
+        end
+
+        if stepResult == AIR_STEP_HIT_LAVA_WALL then
+            lava_boost_on_wall(m);
+        end
+
+        if m.forwardVel > 65 then 
+            m.forwardVel = 65
+        end
+
+end
+
+
+hook_mario_action(ACT_BRELLA_SLIDE_AIR, act_brella_slide_air)
+
+--[[
+
+function act_brella_slide(m)
+
+    m.marioBodyState.handState = MARIO_HAND_PEACE_SIGN
+
+    if m.input & INPUT_A_PRESSED ~= 0 then
+        set_mario_action(m, ACT_FORWARD_ROLLOUT, 0)
+    end
+
+    set_mario_animation(m, MARIO_ANIM_SLIDE_KICK);
+
+    if m.forwardVel < 1 then
+        return set_mario_action(m, ACT_SLIDE_KICK_SLIDE_STOP, 0)
+    end
+
+
+    update_sliding(m, 1)
+    perform_ground_step(m)
+        if stepResult == GROUND_STEP_LEFT_GROUND then set_mario_action(m, ACT_FREEFALL, 2) end
+
+            if stepResult == GROUND_STEP_HIT_WALL then mario_bonk_reflection(m, TRUE) end
+
+            m.particleFlags = PARTICLE_VERTICAL_STAR
+            if stepResult == AIR_STEP_HIT_WALL then set_mario_action(m, ACT_BACKWARD_GROUND_KB, 0) end
+
+    play_sound(SOUND_MOVING_TERRAIN_SLIDE + m.terrainSoundAddend, m.marioObj.header.gfx.cameraToObject);
+    m.particleFlags = PARTICLE_DUST;
+
+end
+
+hook_mario_action(ACT_BRELLA_SLIDE, act_brella_slide)
+
+--]]
 
 function act_brella_float(m)
     local anim = CHAR_ANIM_HANG_ON_CEILING
@@ -255,18 +365,18 @@ hook_mario_action(ACT_BRELLA_LUNGE, act_brella_lunge)
 function act_kak_roll_air(m)
     local e = gStateExtras[m.playerIndex]
     
-    if m.actionTimer < 4 and m.action == ACT_KAK_ROLL_AIR then
+    if m.actionTimer < 2 and m.action == ACT_KAK_ROLL_AIR then
         m.vel.y = 5
         m.vel.x = 0
         m.vel.z = 0
         m.forwardVel = 0
         set_mario_animation(m, CHAR_ANIM_GENERAL_LAND)
     end
-    if m.actionTimer > 4 and m.actionTimer < 9 then
+    if m.actionTimer > 2 and m.actionTimer < 7 then
         
         m.pos.y = m.pos.y + 5
-        m.vel.y = 21
-        m.forwardVel = m.forwardVel + 12
+        m.vel.y = 26
+        m.forwardVel = 52
     end
     if m.actionTimer > 4 and m.actionTimer < 6 then
         play_sound(SOUND_ACTION_TWIRL, m.marioObj.header.gfx.cameraToObject)
@@ -385,6 +495,48 @@ function kaktus_update(m)
         e.canBrella = true
     end
 
+    if m.action == ACT_CROUCHING then
+        m.marioBodyState.handState = MARIO_HAND_PEACE_SIGN
+        m.marioBodyState.eyeState = MARIO_EYES_LOOK_LEFT
+    end
+
+    if m.action == ACT_CROUCH_SLIDE then
+        m.marioBodyState.handState = MARIO_HAND_PEACE_SIGN
+        m.marioBodyState.eyeState = MARIO_EYES_LOOK_LEFT
+        if m.invincTimer ~= 0 then
+            set_mario_particle_flags(m, PARTICLE_SPARKLES, 0)
+        end
+    end
+    
+    if m.action == ACT_START_CROUCHING then
+        m.marioBodyState.handState = MARIO_HAND_PEACE_SIGN
+        m.marioBodyState.eyeState = MARIO_EYES_CLOSED
+        if m.invincTimer ~= 0 then
+            set_mario_particle_flags(m, PARTICLE_SPARKLES, 0)
+        end
+    end
+
+    if m.action == ACT_STAR_DANCE_EXIT then
+        m.marioBodyState.handState = MARIO_HAND_FISTS
+    end
+    if m.action == ACT_STAR_DANCE_NO_EXIT then
+        m.marioBodyState.handState = MARIO_HAND_FISTS
+    end
+    if m.action == ACT_STAR_DANCE_WATER then
+        m.marioBodyState.handState = MARIO_HAND_FISTS
+    end
+
+    if m.action == ACT_SIDE_FLIP then
+        m.actionTimer = m.actionTimer + 1
+        if m.actionTimer < 2 then
+            m.vel.y = 52
+        end
+    end
+
+    if m.action == ACT_SLIDE_KICK_SLIDE then
+        m.marioBodyState.handState = MARIO_HAND_PEACE_SIGN
+    end
+
 end
 
 function kaktus_before_set_action(m, inc)
@@ -406,6 +558,14 @@ function kaktus_before_set_action(m, inc)
     if inc == ACT_DOUBLE_JUMP then
         return ACT_JUMP
     end
+    
+    if inc == ACT_START_CROUCHING and m.action ~= ACT_CROUCH_SLIDE then
+        m.invincTimer = 7
+    end
+
+    if inc == ACT_CROUCH_SLIDE then
+        m.invincTimer = 7
+    end
 
     if inc == ACT_LONG_JUMP then
         m.pos.y = m.pos.y + 5
@@ -415,7 +575,27 @@ function kaktus_before_set_action(m, inc)
         return ACT_KAK_ROLL_AIR
     end
 
+    if inc == ACT_SIDE_FLIP then
+        m.vel.y = 38
+    end
+
+    if inc == ACT_SLIDE_KICK then
+        m.vel.y = 20
+        m.forwardVel = m.forwardVel + 8
+        e.slideBounce = 0
+        return ACT_BRELLA_SLIDE_AIR
+    end
+
+end
+
+function kaktus_on_set_action(m)
+
+    if inc == ACT_SIDE_FLIP then
+        m.vel.y = 5
+    end
+
 end
 
 _G.charSelect.character_hook_moveset(CT_KAKTUS, HOOK_MARIO_UPDATE, kaktus_update)
 _G.charSelect.character_hook_moveset(CT_KAKTUS, HOOK_BEFORE_SET_MARIO_ACTION, kaktus_before_set_action)
+_G.charSelect.character_hook_moveset(CT_KAKTUS, HOOK_ON_SET_MARIO_ACTION, kaktus_on_set_action)
