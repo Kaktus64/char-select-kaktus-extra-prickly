@@ -183,9 +183,9 @@ function act_brella_float(m)
         set_mario_action(m, ACT_FREEFALL, 0)
     end
     if m.input & INPUT_B_PRESSED ~= 0 then
-        m.forwardVel = 25
+        m.forwardVel = 23
         m.actionTimer = 0
-        m.vel.y = 25
+        m.vel.y = m.vel.y + 25
         set_mario_action(m, ACT_DIVE, 0)
     end
     if m.input & INPUT_Z_PRESSED ~= 0 then
